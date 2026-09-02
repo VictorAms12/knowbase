@@ -1,0 +1,23 @@
+{
+  "name": "KnowBase — Knowledge Operations",
+  "short_name": "KnowBase",
+  "description": "Central operacional de conhecimento, troubleshooting, scripts e procedimentos.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f7fb",
+  "theme_color": "#5b5bd6",
+  "icons": [
+    {
+      "src": "/knowbase-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Buscar", "short_name": "Buscar", "url": "/?command=search" },
+    { "name": "Registrar solução", "short_name": "Solução", "url": "/?command=capture" }
+  ]
+}

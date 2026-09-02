@@ -1,12 +1,12 @@
 {
   "name": "knowbase-server",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "check": "node --check src/index.js && node --check src/db.js && node --check src/extractors.js"
+    "dev": "node --watch src/bootstrap.js",
+    "start": "node src/bootstrap.js",
+    "check": "node --check src/index.js && node --check src/db.js && node --check src/extractors.js && node --check src/operations.js && node --check src/bootstrap.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
