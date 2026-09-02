@@ -22,3 +22,29 @@ jobs:
 
       - name: Validate backend and build frontend
         run: npm run check
+
+      - name: Smoke test operational API
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run start --workspace server > /tmp/knowbase-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true; cat /tmp/knowbase-server.log' EXIT
+
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3333/api/health >/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+
+          curl --fail --silent http://127.0.0.1:3333/api/health
+          curl --fail --silent http://127.0.0.1:3333/api/ops/dashboard
+          curl --fail --silent http://127.0.0.1:3333/api/scripts
+          curl --fail --silent http://127.0.0.1:3333/api/diagnostics
+          curl --fail --silent http://127.0.0.1:3333/api/procedures
+          curl --fail --silent -X POST http://127.0.0.1:3333/api/quick-capture \
+            -H 'content-type: application/json' \
+            -H 'x-user-id: 1' \
+            --data '{"problem":"Falha de teste CI","solution":"Procedimento de teste concluído","tags":"CI"}'
+          curl --fail --silent 'http://127.0.0.1:3333/api/search-unified?q=teste'
