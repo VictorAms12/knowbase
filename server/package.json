@@ -1,0 +1,21 @@
+{
+  "name": "knowbase-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "check": "node --check src/index.js && node --check src/db.js && node --check src/extractors.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.9.1",
+    "multer": "^2.0.2",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5",
+    "sanitize-html": "^2.17.0"
+  }
+}
