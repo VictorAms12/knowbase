@@ -13,6 +13,7 @@
     "dev": "concurrently -n API,WEB -c auto \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client",
     "start": "npm run start -w server",
+    "import:knowledge": "npm run import:knowledge -w server --",
     "check": "npm run check -w server && npm run build -w client"
   },
   "devDependencies": {

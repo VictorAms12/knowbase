@@ -6,13 +6,15 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
 const TEXT_EXTENSIONS = new Set(['.txt', '.sql', '.md', '.csv', '.log', '.json', '.xml', '.js', '.ts', '.ps1', '.bat', '.sh']);
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac']);
 
 export function classifyMedia(mime = '', originalName = '') {
   const ext = path.extname(originalName).toLowerCase();
   if (mime === 'application/pdf' || ext === '.pdf') return 'PDF';
   if (mime.startsWith('video/') || ['.mp4', '.webm'].includes(ext)) return 'VIDEO';
+  if (mime.startsWith('audio/') || AUDIO_EXTENSIONS.has(ext)) return 'AUDIO';
   if (mime.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) return 'IMAGE';
-  if (['.docx', '.doc'].includes(ext) || mime.includes('wordprocessingml')) return 'DOCUMENT';
+  if (['.docx', '.doc', '.dot', '.odt'].includes(ext) || mime.includes('wordprocessingml') || mime.includes('opendocument.text')) return 'DOCUMENT';
   if (['.xlsx', '.xls', '.csv'].includes(ext) || mime.includes('spreadsheetml')) return 'SPREADSHEET';
   if (['.pptx', '.ppt'].includes(ext) || mime.includes('presentationml')) return 'PRESENTATION';
   if (['.sql', '.ps1', '.bat', '.sh', '.js', '.ts'].includes(ext)) return 'SCRIPT';
@@ -33,6 +35,20 @@ export async function extractFileText(filePath, mime = '', originalName = '') {
     if (ext === '.docx' || mime.includes('wordprocessingml')) {
       const result = await mammoth.extractRawText({ path: filePath });
       return cleanText(result.value).slice(0, 1_500_000);
+    }
+
+    if (ext === '.odt' || mime.includes('opendocument.text')) {
+      const buffer = await fs.readFile(filePath);
+      const zip = await JSZip.loadAsync(buffer);
+      const content = zip.files['content.xml'];
+      if (!content) return '';
+      const xml = await content.async('string');
+      const text = xml
+        .replace(/<text:(?:p|h|list-item)\b[^>]*>/gi, '\n')
+        .replace(/<text:line-break\s*\/?>/gi, '\n')
+        .replace(/<text:tab\s*\/?>/gi, '\t')
+        .replace(/<[^>]+>/g, ' ');
+      return cleanText(decodeXml(text)).slice(0, 1_500_000);
     }
 
     if (['.xlsx', '.xls', '.csv'].includes(ext) || mime.includes('spreadsheetml')) {

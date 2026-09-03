@@ -11,7 +11,7 @@ O KnowBase reúne artigos, troubleshooting, documentos, vídeos, scripts e proce
 - **Banco:** SQLite nativo do Node (`node:sqlite`)
 - **Busca:** SQLite FTS5 + busca unificada operacional
 - **Arquivos:** storage local em `server/uploads/`
-- **Extração:** PDF, DOCX, XLSX/CSV, PPTX, TXT/SQL/scripts
+- **Extração:** PDF, DOCX, ODT, XLSX/CSV, PPTX, TXT/SQL/scripts
 - **Mobile:** layout responsivo + PWA instalável
 
 ## Base de conhecimento e multimídia
@@ -93,6 +93,83 @@ Cada passo pode conter:
 - resultado esperado.
 
 O usuário pode iniciar o procedimento, marcar etapas e concluir a execução. O progresso é persistido individualmente.
+
+## Importação de bases legadas
+
+O KnowBase possui um importador para transformar pastas ou arquivos compactados de documentação em conteúdos pesquisáveis no banco local.
+
+Ele aceita:
+
+- diretórios já extraídos;
+- `.rar`;
+- `.zip`;
+- `.7z`.
+
+Durante a importação ele:
+
+- agrupa versões equivalentes do mesmo material para reduzir duplicidade;
+- extrai texto de PDF, DOCX, ODT, planilhas, apresentações, TXT, SQL, XML e JSON;
+- cria artigos com título, descrição, categoria e tags inferidas;
+- transforma listas numeradas em **procedimentos executáveis** quando identifica pelo menos duas etapas;
+- preserva os arquivos originais em `server/uploads/` e os vincula ao artigo;
+- inclui o texto extraído no índice de busca;
+- classifica vídeos e áudios como materiais do conhecimento;
+- marca todo conteúdo importado para revisão imediata;
+- registra a origem em `knowledge_import_sources`, evitando duplicação quando o mesmo pacote é importado novamente.
+
+### Importar uma pasta
+
+```bash
+npm run import:knowledge -- "/caminho/PASSO A PASSO DE PROCESSOS"
+```
+
+### Importar um RAR
+
+```bash
+npm run import:knowledge -- "/caminho/base-nortesys.rar"
+```
+
+Por padrão, os conteúdos são publicados. Para importar primeiro como rascunho:
+
+```bash
+npm run import:knowledge -- "/caminho/base-nortesys.rar" --draft
+```
+
+Para apenas analisar o pacote sem alterar o banco:
+
+```bash
+npm run import:knowledge -- "/caminho/base-nortesys.rar" --dry-run
+```
+
+Opções adicionais:
+
+- `--include-ada`: inclui a pasta `IA ADA`, normalmente ignorada por conter cópias/testes;
+- `--include-all`: inclui também documentos comerciais/termos ignorados por padrão;
+- `--keep-temp`: mantém a pasta temporária criada na extração.
+
+### Termux / Android
+
+No Termux, dê acesso aos arquivos compartilhados e instale o extrator 7-Zip:
+
+```bash
+pkg update
+pkg install 7zip
+termux-setup-storage
+```
+
+Depois, supondo que o RAR esteja em Downloads:
+
+```bash
+cd ~/knowbase
+git pull origin main
+npm install
+npm run import:knowledge -- "$HOME/storage/downloads/base-nortesys.rar"
+npm run dev
+```
+
+Se o arquivo tiver outro nome, substitua apenas o último caminho pelo nome real do RAR.
+
+> O banco e os anexos continuam locais. Portanto, o importador deve ser executado no computador/servidor que será a fonte persistente do KnowBase. Depois de importar, faça backup de `server/data/` e `server/uploads/`.
 
 ## Versionamento e governança
 
@@ -256,6 +333,7 @@ knowbase/
 │       ├── operations.js
 │       ├── db.js
 │       ├── extractors.js
+│       ├── importKnowledge.js
 │       └── index.js
 └── .github/workflows/ci.yml
 ```
@@ -267,5 +345,6 @@ O GitHub Actions executa:
 1. instalação das dependências;
 2. validação sintática do backend;
 3. build Vite;
-4. inicialização real do servidor;
-5. smoke tests de health, dashboard operacional, scripts, diagnósticos, procedimentos, captura rápida e busca unificada.
+4. smoke test do importador, incluindo idempotência e criação de procedimentos;
+5. inicialização real do servidor;
+6. smoke tests de health, dashboard operacional, scripts, diagnósticos, procedimentos, captura rápida e busca unificada.

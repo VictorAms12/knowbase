@@ -23,6 +23,32 @@ jobs:
       - name: Validate backend and build frontend
         run: npm run check
 
+      - name: Smoke test knowledge importer
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf server/data server/uploads
+          mkdir -p /tmp/knowbase-import-fixture
+          cat > /tmp/knowbase-import-fixture/ABERTURA_DE_CAIXA.txt <<'EOF'
+          Abertura de caixa
+          1. Acessar Financeiro > Caixa.
+          2. Selecionar o caixa e o usuário.
+          3. Confirmar a abertura.
+          EOF
+
+          npm run import:knowledge -- /tmp/knowbase-import-fixture
+          npm run import:knowledge -- /tmp/knowbase-import-fixture
+
+          node --input-type=module <<'EOF'
+          import { DatabaseSync } from 'node:sqlite';
+          const db = new DatabaseSync('server/data/knowbase.db');
+          const imported = Number(db.prepare("SELECT COUNT(*) c FROM knowledge_import_sources").get().c);
+          const steps = Number(db.prepare("SELECT COUNT(*) c FROM procedure_steps ps JOIN articles a ON a.id=ps.article_id WHERE a.title LIKE '%ABERTURA%' COLLATE NOCASE").get().c);
+          if (imported !== 1) throw new Error(`Importação não idempotente: ${imported} fontes.`);
+          if (steps < 3) throw new Error(`Passos não detectados: ${steps}.`);
+          console.log({ imported, steps });
+          EOF
+
       - name: Smoke test operational API
         shell: bash
         run: |
