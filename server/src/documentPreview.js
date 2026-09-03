@@ -76,6 +76,15 @@ function cleanPreviewHtml(html = '') {
   });
 }
 
+function tidyReaderHtml(html = '') {
+  return String(html)
+    .replace(/<(p|div)[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, '')
+    .replace(/(?:<br\s*\/?>\s*){3,}/gi, '<br><br>')
+    .replace(/<p>\s*(?:<br\s*\/?>\s*)+<\/p>/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function renderDocx(filePath) {
   const result = await mammoth.convertToHtml({ path: filePath }, {
     styleMap: [
@@ -83,7 +92,7 @@ async function renderDocx(filePath) {
       "p[style-name='Subtitle'] => p.subtitle:fresh"
     ]
   });
-  return cleanPreviewHtml(result.value);
+  return cleanPreviewHtml(tidyReaderHtml(result.value));
 }
 
 async function renderOdt(filePath) {
@@ -112,7 +121,7 @@ async function renderOdt(filePath) {
     blocks.push(type === 'h' ? `<h${h}>${text}</h${h}>` : `<p>${text}</p>`);
   }
 
-  return cleanPreviewHtml(blocks.join('\n'));
+  return cleanPreviewHtml(tidyReaderHtml(blocks.join('\n')));
 }
 
 function renderWorkbook(filePath) {
@@ -181,9 +190,16 @@ async function renderDocument(row) {
   };
 }
 
-function viewerPage({ row, title, html }) {
+function viewerPage({ row, title, html, mode = 'reader' }) {
   const source = originalUrl(row);
   const fileName = row.original_name || row.name || 'Documento';
+  const readerUrl = `/api/media/${row.id}/render`;
+  const textUrl = `${readerUrl}?mode=text`;
+  const hasText = Boolean(String(row.extracted_text || '').trim());
+  const modeNote = mode === 'text'
+    ? 'Texto extraído automaticamente. Útil para localizar informações quando a formatação original é irregular.'
+    : 'Modo leitura: a estrutura é simplificada para facilitar a consulta. Documentos originalmente desorganizados podem continuar com algumas quebras fora do lugar.';
+
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -191,11 +207,12 @@ function viewerPage({ row, title, html }) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(fileName)}</title>
 <style>
-:root{color-scheme:light dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f4f6;color:#18181b}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#18181b}.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid #e4e4e7;background:rgba(255,255,255,.96);backdrop-filter:blur(12px)}.bar div{min-width:0}.bar small{display:block;color:#71717a;font-size:11px}.bar strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.bar a{flex:0 0 auto;padding:8px 11px;border:1px solid #d4d4d8;border-radius:9px;background:#fff;color:#3f3f46;text-decoration:none;font-size:11px;font-weight:700}.page{width:min(980px,calc(100% - 28px));min-height:calc(100vh - 92px);margin:16px auto 28px;padding:42px 48px;border:1px solid #e4e4e7;border-radius:12px;background:#fff;box-shadow:0 14px 50px rgba(24,24,27,.08)}h1{font-size:30px}h2{margin-top:28px;font-size:20px}h3{font-size:16px}p,li{font-size:14px;line-height:1.65}table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;border:1px solid #d4d4d8;vertical-align:top}th{background:#f4f4f5}.table-scroll{max-width:100%;overflow:auto}.sheet+.sheet{margin-top:42px}.slide{margin:0 auto 22px;padding:34px;aspect-ratio:16/9;border:1px solid #d4d4d8;border-radius:12px;background:linear-gradient(145deg,#fff,#f8f9fb);box-shadow:0 8px 28px rgba(24,24,27,.07);overflow:auto}.slide-number{margin-bottom:18px;color:#71717a;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}.source-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.empty-preview{padding:70px 20px;text-align:center}.empty-preview p,.muted{color:#71717a}.subtitle{color:#71717a;font-size:16px}@media(max-width:700px){.bar{padding:10px 12px}.bar a{padding:7px 9px}.page{width:100%;min-height:calc(100vh - 60px);margin:0;padding:24px 16px;border:0;border-radius:0}.slide{padding:20px;aspect-ratio:auto;min-height:260px}}@media(prefers-color-scheme:dark){:root,body{background:#0c0d11;color:#f4f4f5}.bar{border-color:#292d36;background:rgba(19,21,27,.96)}.bar small{color:#9699a3}.bar a{border-color:#3b404b;background:#181b22;color:#d4d4d8}.page{border-color:#292d36;background:#13151b;box-shadow:none}th,td{border-color:#3b404b}th{background:#20242d}.slide{border-color:#3b404b;background:linear-gradient(145deg,#181b22,#13151b)}.muted,.empty-preview p,.slide-number{color:#9699a3}}
+:root{color-scheme:light dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f4f6;color:#18181b}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#18181b}.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid #e4e4e7;background:rgba(255,255,255,.96);backdrop-filter:blur(12px)}.bar>div:first-child{min-width:0}.bar small{display:block;color:#71717a;font-size:11px}.bar strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.bar-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.bar a{flex:0 0 auto;padding:8px 11px;border:1px solid #d4d4d8;border-radius:9px;background:#fff;color:#3f3f46;text-decoration:none;font-size:11px;font-weight:700}.bar a.active{border-color:#6366f1;background:#eef2ff;color:#4f46e5}.reader-note{width:min(980px,calc(100% - 28px));margin:14px auto 0;padding:10px 13px;border:1px solid #dbe3f0;border-radius:10px;background:#f8fbff;color:#53606f;font-size:11px;line-height:1.5}.page{width:min(980px,calc(100% - 28px));min-height:calc(100vh - 128px);margin:12px auto 28px;padding:42px 48px;border:1px solid #e4e4e7;border-radius:12px;background:#fff;box-shadow:0 14px 50px rgba(24,24,27,.08)}h1{font-size:30px}h2{margin-top:28px;font-size:20px}h3{font-size:16px}p,li{font-size:14px;line-height:1.65}p{margin:0 0 12px}ul,ol{padding-left:24px}table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;border:1px solid #d4d4d8;vertical-align:top}th{background:#f4f4f5}.table-scroll{max-width:100%;overflow:auto}.sheet+.sheet{margin-top:42px}.slide{margin:0 auto 22px;padding:34px;aspect-ratio:16/9;border:1px solid #d4d4d8;border-radius:12px;background:linear-gradient(145deg,#fff,#f8f9fb);box-shadow:0 8px 28px rgba(24,24,27,.07);overflow:auto}.slide-number{margin-bottom:18px;color:#71717a;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}.source-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.empty-preview{padding:70px 20px;text-align:center}.empty-preview p,.muted{color:#71717a}.subtitle{color:#71717a;font-size:16px}@media(max-width:700px){.bar{align-items:flex-start;padding:10px 12px;flex-direction:column}.bar-actions{width:100%;justify-content:flex-start}.bar a{padding:7px 9px}.reader-note{width:calc(100% - 20px);margin-top:10px}.page{width:100%;min-height:calc(100vh - 60px);margin:10px 0 0;padding:24px 16px;border-left:0;border-right:0;border-radius:0}.slide{padding:20px;aspect-ratio:auto;min-height:260px}}@media(prefers-color-scheme:dark){:root,body{background:#0c0d11;color:#f4f4f5}.bar{border-color:#292d36;background:rgba(19,21,27,.96)}.bar small{color:#9699a3}.bar a{border-color:#3b404b;background:#181b22;color:#d4d4d8}.bar a.active{border-color:#818cf8;background:#20213d;color:#c7d2fe}.reader-note{border-color:#31384a;background:#151924;color:#b6bfcc}.page{border-color:#292d36;background:#13151b;box-shadow:none}th,td{border-color:#3b404b}th{background:#20242d}.slide{border-color:#3b404b;background:linear-gradient(145deg,#181b22,#13151b)}.muted,.empty-preview p,.slide-number{color:#9699a3}}
 </style>
 </head>
 <body>
-<header class="bar"><div><small>${escapeHtml(title)} · ${formatBytes(row.size_bytes)}</small><strong>${escapeHtml(fileName)}</strong></div>${source ? `<a href="${source}" target="_blank" rel="noreferrer">Abrir original</a>` : ''}</header>
+<header class="bar"><div><small>${escapeHtml(title)} · ${formatBytes(row.size_bytes)}</small><strong>${escapeHtml(fileName)}</strong></div><div class="bar-actions"><a class="${mode === 'reader' ? 'active' : ''}" href="${readerUrl}">Modo leitura</a>${hasText ? `<a class="${mode === 'text' ? 'active' : ''}" href="${textUrl}">Texto extraído</a>` : ''}${source ? `<a href="${source}" target="_blank" rel="noreferrer">Abrir original</a>` : ''}</div></header>
+<div class="reader-note">${escapeHtml(modeNote)}</div>
 <main class="page">${html || '<div class="empty-preview"><h2>Documento vazio</h2><p>Nenhum conteúdo foi extraído deste arquivo.</p></div>'}</main>
 </body>
 </html>`;
@@ -208,15 +225,19 @@ export async function renderMediaDocument(req, res) {
 
   try {
     await fs.access(row.storage_path);
-    const preview = await renderDocument(row);
+    const mode = String(req.query.mode || 'reader').toLowerCase() === 'text' ? 'text' : 'reader';
+    const preview = mode === 'text' && row.extracted_text
+      ? { title: 'Texto extraído', html: `<pre class="source-text">${escapeHtml(row.extracted_text.slice(0, 1_500_000))}</pre>` }
+      : await renderDocument(row);
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('Cache-Control', 'private, max-age=300');
     res.set('X-Content-Type-Options', 'nosniff');
-    res.send(viewerPage({ row, ...preview }));
+    res.send(viewerPage({ row, ...preview, mode }));
   } catch (error) {
     res.status(500).send(viewerPage({
       row,
       title: 'Documento',
+      mode: 'reader',
       html: `<div class="empty-preview"><h2>Não foi possível renderizar</h2><p>${escapeHtml(error.message)}</p></div>`
     }));
   }
