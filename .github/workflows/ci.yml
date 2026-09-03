@@ -65,6 +65,15 @@ jobs:
           done
 
           curl --fail --silent http://127.0.0.1:3333/api/health
+          curl --fail --silent http://127.0.0.1:3333/api/articles > /tmp/articles.json
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+          const articles = JSON.parse(fs.readFileSync('/tmp/articles.json', 'utf8'));
+          const imported = articles.find(article => /ABERTURA/i.test(article.title));
+          if (!imported) throw new Error('Artigo importado não retornado pela API.');
+          if (/Conteúdo de referência/i.test(imported.body_html || '')) throw new Error('Texto extraído bruto ainda está visível no corpo do artigo.');
+          if (!/Visualização do conteúdo/i.test(imported.body_html || '')) throw new Error('Aviso de visualização limpa não foi aplicado.');
+          EOF
           curl --fail --silent http://127.0.0.1:3333/api/ops/dashboard
           curl --fail --silent http://127.0.0.1:3333/api/scripts
           curl --fail --silent http://127.0.0.1:3333/api/diagnostics

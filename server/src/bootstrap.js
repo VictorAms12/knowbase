@@ -1,6 +1,7 @@
 import express from 'express';
 import { registerOperations, snapshotArticleMiddleware } from './operations.js';
 import { enhancedMediaPreview, renderMediaDocument } from './documentPreview.js';
+import { importedArticlePresentation } from './importedPresentation.js';
 
 let operationsRegistered = false;
 let documentPreviewRegistered = false;
@@ -26,6 +27,13 @@ express.application.get = function patchedGet(path, ...handlers) {
     }
     return originalGet.call(this, path, enhancedMediaPreview);
   }
+
+  // Imported Nortesys articles keep their raw extracted text in the database/FTS,
+  // but the UI receives a cleaner body that points users to the original attachment.
+  if (path === '/api/articles' || path === '/api/articles/:idOrSlug') {
+    return originalGet.call(this, path, importedArticlePresentation, ...handlers);
+  }
+
   if (path === '/{*path}') ensureOperations(this);
   return originalGet.call(this, path, ...handlers);
 };
